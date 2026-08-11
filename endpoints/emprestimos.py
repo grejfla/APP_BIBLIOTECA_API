@@ -2,20 +2,20 @@ from flask import Blueprint, jsonify,request,abort
 
 from conectar.funcaoConectar import conectar
 
-TabelaSerie_B_bp = Blueprint('TabelaSerieB', __name__)
+emprestimos = Blueprint('emprestimos', __name__)
 
 
 #ROTAS PARA A TABELA SERIE B
 ##ROTA GET
 ##############################################
-@TabelaSerie_B_bp.route("/TabelaSerieB", methods=["GET"])
+@emprestimos.route("/emprestimos", methods=["GET"])
 def listar_CadastrosB():
     conn = conectar()
     #conn.execute("PRAGMA foreign_keys = ON") #ativa as chaves estrangeiras das tabelas (pois, não é ativado por padrão)
     cursor = conn.cursor()
-    cursor.execute("SELECT idSerieB, NomeClube, PontosClube, JogosClube, SaldoGols, VitoriaClube, DerrotasClube, EmpatesClube, PosicaoTabela FROM TabelaSerieB")
+    cursor.execute("SELECT idEmprestimo, DataEmprestimo, PrevisaoDevolucao FROM emprestimos")
     dados = [
-        {"idSerieB": row[0], "NomeClube": row[1], "PontosClube": row[2], "JogosClube": row[3], "SaldoGols": row [4], "VitoriaClube": row [5], "DerrotasClube": row [6], "EmpatesClube": row [7], "PosicaoTabela": row [8] }
+        {"idEmprestimo": row[0], "DataEmprestimo": row[1], "PrevisaoDevolucao": row[2]}
         for row in cursor.fetchall()
     ]
     conn.close()
@@ -24,50 +24,50 @@ def listar_CadastrosB():
 ##ROTA INSERT
 #############################################
 
-@TabelaSerie_B_bp.route("/TabelaSerieB", methods=["POST"])
+@emprestimos.route("/emprestimos", methods=["POST"])
 def criar_usuarioB():
     dados = request.get_json(silent=True)
     if not dados:
         abort(400, description="JSON inválido ou ausente")
 
     # Validação de campos obrigatórios
-    campos_obrigatorios = {"NomeClube", "PontosClube", "JogosClube", "SaldoGols", "VitoriaClube","DerrotasClube", "EmpatesClube", "PosicaoTabela"}
+    campos_obrigatorios = {"DataEmprestimo", "PrevisaoDevolucao"}
     if not campos_obrigatorios.issubset(dados.keys()):
         abort(400, description=f"Campos obrigatórios: {', '.join(campos_obrigatorios)}")
 
     conn = conectar()
     cursor = conn.cursor()
     cursor.execute(
-        "INSERT INTO TabelaSerieB (NomeClube, PontosClube, JogosClube, SaldoGols, VitoriaClube, DerrotasClube, EmpatesClube, PosicaoTabela)"
-        "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-        (dados["NomeClube"], dados["PontosClube"], dados["JogosClube"], dados["SaldoGols"], dados["VitoriaClube"], dados["DerrotasClube"], dados["EmpatesClube"], dados["PosicaoTabela"])
+        "INSERT INTO emprestimos (DataEmprestimo, PrevisaoDevolucao)"
+        "VALUES (?, ?,)",
+        (dados["DataEmprestimo"], dados["PrevisaoDevolucao"])
     )
     conn.commit()
     novo_id = cursor.lastrowid
     conn.close()
 
     # 201 Created + Location do recurso recém‑criado
-    resposta = jsonify({"idSerieB": novo_id, **dados})
+    resposta = jsonify({"emprestimos": novo_id, **dados})
     resposta.status_code = 201
-    resposta.headers["Location"] = f"/TabelaSerieB/{novo_id}"
+    resposta.headers["Location"] = f"/emprestimos/{novo_id}"
     return resposta
 
 ##ROTA UPDATE
 #############################################
-@TabelaSerie_B_bp.route("/TabelaSerieB/<int:idSerieB>", methods=["PUT", "PATCH"])
-def atualizar_usuarioB(idSerieB):
+@emprestimos.route("/emprestimos/<int:idEmprestimo>", methods=["PUT", "PATCH"])
+def atualizar_usuarioB(idEmprestimo):
     dados = request.get_json(silent=True)
     if not dados:
         abort(400, description="JSON inválido ou ausente")
 
     # Para PUT, garanta que todos os campos estejam presentes
     if request.method == "PUT":
-        campos_esperados = {"NomeClube", "PontosClube", "JogosClube", "SaldoGols", "VitoriaClube", "DerrotasClube", "EmpatesClube","PosicaoTabela"}
+        campos_esperados = {"DataEmprestimo", "PrevisaoDevolucao"}
         if not campos_esperados.issubset(dados.keys()):
             abort(400, description=f"PUT requer todos os campos: {', '.join(campos_esperados)}")
 
     # Monta dinamicamente o SQL somente com os campos enviados
-    campos_validos = {"NomeClube", "PontosClube", "JogosClube", "SaldoGols", "VitoriaClube", "DerrotasClube", "EmpatesClube", "PosicaoTabela"}
+    campos_validos = {"DataEmprestimo", "PrevisaoDevolucao"}
     set_clauses = []
     valores = []
     for campo in campos_validos & dados.keys():
@@ -77,19 +77,19 @@ def atualizar_usuarioB(idSerieB):
     if not set_clauses:
         abort(400, description="Nenhum campo válido para atualizar")
 
-    valores.append(idSerieB)  # último parâmetro é o WHERE
+    valores.append(idEmprestimo)  # último parâmetro é o WHERE
 
     conn = conectar()
     cursor = conn.cursor()
     cursor.execute(
-        f"UPDATE TabelaSerieB SET {', '.join(set_clauses)} WHERE idSerieB = ?",
+        f"UPDATE emprestimos SET {', '.join(set_clauses)} WHERE idEmprestimo = ?",
         tuple(valores)
     )
     conn.commit()
 
     if cursor.rowcount == 0:
         conn.close()
-        abort(404, description="Clube não encontrado")
+        abort(404, description="usuário não encontrado")
 
     conn.close()
     # 204 = No Content, mas você pode devolver 200 com o JSON atualizado se preferir
@@ -98,20 +98,20 @@ def atualizar_usuarioB(idSerieB):
 
 ##ROTA DELETE
 #############################################
-@TabelaSerie_B_bp.route("/TabelaSerieB/<int:idSerieB>", methods=["DELETE"])
-def deletarTabelaSerieB(idSerieB):
+@emprestimos.route("/emprestimos/<int:idEmprestimo>", methods=["DELETE"])
+def deletaremprestimos(idEmprestimo):
     conn = conectar()
     cursor = conn.cursor()
 
     # tenta apagar o registro informado
-    cursor.execute("DELETE FROM TabelaSerieB WHERE idSerieB = ?", (idSerieB,))
+    cursor.execute("DELETE FROM emprestimos WHERE idEmprestimo = ?", (idEmprestimo,))
     conn.commit()
 
     # cursor.rowcount informa quantas linhas foram afetadas
     if cursor.rowcount == 0:
         conn.close()
         # nenhum registro com esse ID → devolve 404
-        abort(404, description="Clube não encontrado")
+        abort(404, description="usuário não encontrado")
 
     conn.close()
     # 204 = No Content (padrão para deleções bem‑sucedidas)
