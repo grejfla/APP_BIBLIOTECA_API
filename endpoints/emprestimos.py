@@ -39,7 +39,7 @@ def criar_usuarioB():
     cursor = conn.cursor()
     cursor.execute(
         "INSERT INTO emprestimos (DataEmprestimo, PrevisaoDevolucao)"
-        "VALUES (?, ?,)",
+        "VALUES (%s, %s)",
         (dados["DataEmprestimo"], dados["PrevisaoDevolucao"])
     )
     conn.commit()
@@ -71,7 +71,7 @@ def atualizar_usuarioB(idEmprestimo):
     set_clauses = []
     valores = []
     for campo in campos_validos & dados.keys():
-        set_clauses.append(f"{campo} = ?")
+        set_clauses.append(f"{campo} = %s")
         valores.append(dados[campo])
 
     if not set_clauses:
@@ -82,7 +82,7 @@ def atualizar_usuarioB(idEmprestimo):
     conn = conectar()
     cursor = conn.cursor()
     cursor.execute(
-        f"UPDATE emprestimos SET {', '.join(set_clauses)} WHERE idEmprestimo = ?",
+        f"UPDATE emprestimos SET {', '.join(set_clauses)} WHERE idEmprestimo = %s",
         tuple(valores)
     )
     conn.commit()
@@ -104,7 +104,7 @@ def deletaremprestimos(idEmprestimo):
     cursor = conn.cursor()
 
     # tenta apagar o registro informado
-    cursor.execute("DELETE FROM emprestimos WHERE idEmprestimo = ?", (idEmprestimo,))
+    cursor.execute("DELETE FROM emprestimos WHERE idEmprestimo = %s", (idEmprestimo,))
     conn.commit()
 
     # cursor.rowcount informa quantas linhas foram afetadas

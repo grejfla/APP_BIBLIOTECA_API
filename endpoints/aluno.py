@@ -9,14 +9,14 @@ aluno = Blueprint('aluno', __name__)
 #ROTAS PARA A TABELA SERIE A
 ##ROTA GET
 ##############################################
-aluno.route("/aluno", methods=["GET"])
+@aluno.route("/aluno", methods=["GET"])
 def listar_Cadastros():
     conn = conectar()
     #conn.execute("PRAGMA foreign_keys = ON") #ativa as chaves estrangeiras das tabelas (pois, não é ativado por padrão)
     cursor = conn.cursor()
-    cursor.execute("SELECT idAluno, NomeAluno, SenhaAluno, MatriculaAluno,EnderecoAluno FROM aluno")
+    cursor.execute("SELECT idAluno, NomeAluno, SenhaAluno, MatriculaAluno, EnderecoAluno FROM aluno")
     dados = [
-        {idAluno": row[0], "NomeAluno": row[1], "SenhaAluno": row[2], "MatriculaAluno": row[3], "EnderecoAluno": row [4]}
+        {"idAluno": row[0], "NomeAluno": row[1], "SenhaAluno": row[2], "MatriculaAluno": row[3], "EnderecoAluno": row [4]}
         for row in cursor.fetchall()
     ]
     conn.close()
@@ -39,7 +39,7 @@ def criar_usuario():
     cursor = conn.cursor()
     cursor.execute(
         "INSERT INTO aluno (NomeAluno, SenhaAluno , MatriculaAluno , EnderecoAluno)"
-        "VALUES (?, ?, ?, ?,)",
+        "VALUES (%s, %s, %s, %s)",
         (dados["NomeAluno"], dados["SenhaAluno"], dados["MatriculaAluno"], dados["EnderecoAluno"])
     )
     conn.commit()
@@ -71,7 +71,7 @@ def atualizar_usuario(idAluno):
     set_clauses = []
     valores = []
     for campo in campos_validos & dados.keys():
-        set_clauses.append(f"{campo} = ?")
+        set_clauses.append(f"{campo} = %s")
         valores.append(dados[campo])
 
     if not set_clauses:
@@ -82,7 +82,7 @@ def atualizar_usuario(idAluno):
     conn = conectar()
     cursor = conn.cursor()
     cursor.execute(
-        f"UPDATE aluno SET {', '.join(set_clauses)} WHERE idAluno = ?",
+        f"UPDATE aluno SET {', '.join(set_clauses)} WHERE idAluno = %s",
         tuple(valores)
     )
     conn.commit()
@@ -104,7 +104,7 @@ def deletaraluno(idAluno):
     cursor = conn.cursor()
 
     # tenta apagar o registro informado
-    cursor.execute("DELETE FROM aluno WHERE idAluno = ?", (idAluno,))
+    cursor.execute("DELETE FROM aluno WHERE idAluno = %s", (idAluno,))
     conn.commit()
 
     # cursor.rowcount informa quantas linhas foram afetadas

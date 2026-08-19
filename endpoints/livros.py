@@ -12,7 +12,7 @@ def listar_CadastrosD():
     conn = conectar()
     #conn.execute("PRAGMA foreign_keys = ON") #ativa as chaves estrangeiras das tabelas (pois, não é ativado por padrão)
     cursor = conn.cursor()
-    cursor.execute("SELECT idLivro, NomeLivro, AutorLivro, EditoraLivro, Ano_Edicao_livro, Categoria_Livro, QuantidadeLivro, StatusLivros")
+    cursor.execute("SELECT idLivro, NomeLivro, AutorLivro, EditoraLivro, Ano_Edicao_livro, Categoria_Livro, QuantidadeLivro, StatusLivros FROM livros")
     dados = [
         {"idLivro": row[0], "NomeLivro": row[1], "AutorLivro": row[2], "EditoraLivro": row[3], "Ano_Edicao_livro": row [4], "Categoria_Livro": row [5], "QuantidadeLivro": row [6], "StatusLivros": row [7]}
         for row in cursor.fetchall()
@@ -37,7 +37,7 @@ def criar_usuarioD():
     cursor = conn.cursor()
     cursor.execute(
         "INSERT INTO livros (NomeLivro, AutorLivro, EditoraLivro, Ano_Edicao_livro, Categoria_Livro, QuantidadeLivro, StatusLivros)"
-        "VALUES (?, ?, ?, ?, ?, ?, ?)",
+        "VALUES (%s, %s, %s, %s, %s, %s, %s)",
         (dados["NomeLivro"], dados["AutorLivro"], dados["EditoraLivro"], dados["Ano_Edicao_livro"], dados["Categoria_Livro"], dados["QuantidadeLivro"], dados["StatusLivros"])
     )
     conn.commit()
@@ -69,7 +69,7 @@ def atualizar_usuarioD(idLivro):
     set_clauses = []
     valores = []
     for campo in campos_validos & dados.keys():
-        set_clauses.append(f"{campo} = ?")
+        set_clauses.append(f"{campo} = %s")
         valores.append(dados[campo])
 
     if not set_clauses:
@@ -80,7 +80,7 @@ def atualizar_usuarioD(idLivro):
     conn = conectar()
     cursor = conn.cursor()
     cursor.execute(
-        f"UPDATE livros SET {', '.join(set_clauses)} WHERE idLivro = ?",
+        f"UPDATE livros SET {', '.join(set_clauses)} WHERE idLivro = %s",
         tuple(valores)
     )
     conn.commit()
@@ -102,7 +102,7 @@ def deletarlivros(idLivro):
     cursor = conn.cursor()
 
     # tenta apagar o registro informado
-    cursor.execute("DELETE FROM TabelaSerieD WHERE idLivro = ?", (idLivro,))
+    cursor.execute("DELETE FROM TabelaSerieD WHERE idLivro = %s", (idLivro,))
     conn.commit()
 
     # cursor.rowcount informa quantas linhas foram afetadas

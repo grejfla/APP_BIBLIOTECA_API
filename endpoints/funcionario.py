@@ -38,7 +38,7 @@ def criar_usuarioC():
     cursor = conn.cursor()
     cursor.execute(
         "INSERT INTO funcionario (NomeFuncionario, SenhaFuncionario , RegistroFuncionario , CPF_Funcionario)"
-        "VALUES (?, ?, ?, ?,)",
+        "VALUES (%s, %s, %s, %s)",
         (dados["NomeFuncionario"], dados["SenhaFuncionario"], dados["RegistroFuncionario"], dados["CPF_Funcionario"])
     )
     conn.commit()
@@ -70,7 +70,7 @@ def atualizar_usuarioC(idfuncionario):
     set_clauses = []
     valores = []
     for campo in campos_validos & dados.keys():
-        set_clauses.append(f"{campo} = ?")
+        set_clauses.append(f"{campo} = %s")
         valores.append(dados[campo])
 
     if not set_clauses:
@@ -81,7 +81,7 @@ def atualizar_usuarioC(idfuncionario):
     conn = conectar()
     cursor = conn.cursor()
     cursor.execute(
-        f"UPDATE funcionario SET {', '.join(set_clauses)} WHERE idfuncionario = ?",
+        f"UPDATE funcionario SET {', '.join(set_clauses)} WHERE idfuncionario = %s",
         tuple(valores)
     )
     conn.commit()
@@ -103,7 +103,7 @@ def deletarfuncionario(idfuncionario):
     cursor = conn.cursor()
 
     # tenta apagar o registro informado
-    cursor.execute("DELETE FROM funcionario WHERE idfuncionario = ?", (idfuncionario,))
+    cursor.execute("DELETE FROM funcionario WHERE idfuncionario = %s", (idfuncionario,))
     conn.commit()
 
     # cursor.rowcount informa quantas linhas foram afetadas
