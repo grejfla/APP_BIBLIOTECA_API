@@ -12,9 +12,9 @@ def listar_CadastrosD():
     conn = conectar()
     #conn.execute("PRAGMA foreign_keys = ON") #ativa as chaves estrangeiras das tabelas (pois, não é ativado por padrão)
     cursor = conn.cursor()
-    cursor.execute("SELECT idLivro, NomeLivro, AutorLivro, EditoraLivro, Ano_Edicao_livro, Categoria_Livro, QuantidadeLivro, StatusLivros FROM livros")
+    cursor.execute("SELECT idLivro, NomeLivro, AutorLivro, EditoraLivro, AnoPublicacaoLivro, ISBN_Livro, Categoria_Livro, QuantidadeLivro, StatusLivros, DescricaoLivro FROM livros")
     dados = [
-        {"idLivro": row[0], "NomeLivro": row[1], "AutorLivro": row[2], "EditoraLivro": row[3], "Ano_Edicao_livro": row [4], "Categoria_Livro": row [5], "QuantidadeLivro": row [6], "StatusLivros": row [7]}
+        {"idLivro": row[0], "NomeLivro": row[1], "AutorLivro": row[2], "EditoraLivro": row[3], "AnoPublicacaoLivro": row [4], "ISBN_Livro": row [5], "Categoria_Livro": row [6], "QuantidadeLivro": row [7], "StatusLivros": row [8], "DescricaoLivro": row [9]}
         for row in cursor.fetchall()
     ]
     conn.close()
@@ -29,16 +29,16 @@ def criar_usuarioD():
         abort(400, description="JSON inválido ou ausente")
 
     # Validação de campos obrigatórios
-    campos_obrigatorios = {"NomeLivro", "AutorLivro", "EditoraLivro", "Ano_Edicao_livro", "Categoria_Livro","QuantidadeLivro", "StatusLivros"}
+    campos_obrigatorios = {"NomeLivro", "AutorLivro", "EditoraLivro", "AnoPublicacaoLivro", "ISBN_Livro", "Categoria_Livro","QuantidadeLivro", "StatusLivros", "DescricaoLivro"}
     if not campos_obrigatorios.issubset(dados.keys()):
         abort(400, description=f"Campos obrigatórios: {', '.join(campos_obrigatorios)}")
 
     conn = conectar()
     cursor = conn.cursor()
     cursor.execute(
-        "INSERT INTO livros (NomeLivro, AutorLivro, EditoraLivro, Ano_Edicao_livro, Categoria_Livro, QuantidadeLivro, StatusLivros)"
-        "VALUES (%s, %s, %s, %s, %s, %s, %s)",
-        (dados["NomeLivro"], dados["AutorLivro"], dados["EditoraLivro"], dados["Ano_Edicao_livro"], dados["Categoria_Livro"], dados["QuantidadeLivro"], dados["StatusLivros"])
+        "INSERT INTO livros (NomeLivro, AutorLivro, EditoraLivro, AnoPublicacaoLivro, ISBN_Livro, Categoria_Livro, QuantidadeLivro, StatusLivros, DescricaoLivro)"
+        "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)",
+        (dados["NomeLivro"], dados["AutorLivro"], dados["EditoraLivro"], dados["AnoPublicacaoLivro"], dados["ISBN_Livro"], dados["Categoria_Livro"], dados["QuantidadeLivro"], dados["StatusLivros"], dados["DescricaoLivro"])
     )
     conn.commit()
     novo_id = cursor.lastrowid
@@ -60,12 +60,12 @@ def atualizar_usuarioD(idLivro):
 
     # Para PUT, garanta que todos os campos estejam presentes
     if request.method == "PUT":
-        campos_esperados = {"NomeLivro", "AutorLivro", "EditoraLivro", "Ano_Edicao_Livro", "Categoria_Livro", "QuantidadeLivro", "StatusLivros"}
+        campos_esperados = {"NomeLivro", "AutorLivro", "EditoraLivro", "AnoPublicacaoLivro", "ISBN_Livro", "Categoria_Livro", "QuantidadeLivro", "StatusLivros", "DescricaoLivro"}
         if not campos_esperados.issubset(dados.keys()):
             abort(400, description=f"PUT requer todos os campos: {', '.join(campos_esperados)}")
 
     # Monta dinamicamente o SQL somente com os campos enviados
-    campos_validos = {"NomeLivro", "AutorLivro", "EditoraLivro", "Ano_Edicao_livro", "Categoria_Livro", "QuantidadeLivro", "StatusLivros"}
+    campos_validos = {"NomeLivro", "AutorLivro", "EditoraLivro", "AnoPublicacaoLivro", "ISBN_Livro", "Categoria_Livro", "QuantidadeLivro", "StatusLivros", "DescricaoLivro"}
     set_clauses = []
     valores = []
     for campo in campos_validos & dados.keys():
@@ -102,7 +102,7 @@ def deletarlivros(idLivro):
     cursor = conn.cursor()
 
     # tenta apagar o registro informado
-    cursor.execute("DELETE FROM TabelaSerieD WHERE idLivro = %s", (idLivro,))
+    cursor.execute("DELETE FROM livros WHERE idLivro = %s", (idLivro,))
     conn.commit()
 
     # cursor.rowcount informa quantas linhas foram afetadas

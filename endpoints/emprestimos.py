@@ -13,9 +13,9 @@ def listar_CadastrosB():
     conn = conectar()
     #conn.execute("PRAGMA foreign_keys = ON") #ativa as chaves estrangeiras das tabelas (pois, não é ativado por padrão)
     cursor = conn.cursor()
-    cursor.execute("SELECT idEmprestimo, DataEmprestimo, PrevisaoDevolucao FROM emprestimos")
+    cursor.execute("SELECT idEmprestimo, DataEmprestimo, PrevisaoDevolucao, DataDevolucaoReal FROM emprestimos")
     dados = [
-        {"idEmprestimo": row[0], "DataEmprestimo": row[1], "PrevisaoDevolucao": row[2]}
+        {"idEmprestimo": row[0], "DataEmprestimo": row[1], "PrevisaoDevolucao": row[2], "DataDevolucaoReal": row[3]}
         for row in cursor.fetchall()
     ]
     conn.close()
@@ -31,23 +31,23 @@ def criar_usuarioB():
         abort(400, description="JSON inválido ou ausente")
 
     # Validação de campos obrigatórios
-    campos_obrigatorios = {"DataEmprestimo", "PrevisaoDevolucao"}
+    campos_obrigatorios = {"DataEmprestimo", "PrevisaoDevolucao", "DataDevolucaoReal"}
     if not campos_obrigatorios.issubset(dados.keys()):
         abort(400, description=f"Campos obrigatórios: {', '.join(campos_obrigatorios)}")
 
     conn = conectar()
     cursor = conn.cursor()
     cursor.execute(
-        "INSERT INTO emprestimos (DataEmprestimo, PrevisaoDevolucao)"
-        "VALUES (%s, %s)",
-        (dados["DataEmprestimo"], dados["PrevisaoDevolucao"])
+        "INSERT INTO emprestimos (DataEmprestimo, PrevisaoDevolucao, DataDevolucaoReal)"
+        "VALUES (%s, %s, %s)",
+        (dados["DataEmprestimo"], dados["PrevisaoDevolucao"], dados["DataDevolucaoReal"])
     )
     conn.commit()
     novo_id = cursor.lastrowid
     conn.close()
 
     # 201 Created + Location do recurso recém‑criado
-    resposta = jsonify({"emprestimos": novo_id, **dados})
+    resposta = jsonify({"idEmprestimo": novo_id, **dados})
     resposta.status_code = 201
     resposta.headers["Location"] = f"/emprestimos/{novo_id}"
     return resposta
@@ -62,12 +62,12 @@ def atualizar_usuarioB(idEmprestimo):
 
     # Para PUT, garanta que todos os campos estejam presentes
     if request.method == "PUT":
-        campos_esperados = {"DataEmprestimo", "PrevisaoDevolucao"}
+        campos_esperados = {"DataEmprestimo", "PrevisaoDevolucao", "DataDevolucaoReal"}
         if not campos_esperados.issubset(dados.keys()):
             abort(400, description=f"PUT requer todos os campos: {', '.join(campos_esperados)}")
 
     # Monta dinamicamente o SQL somente com os campos enviados
-    campos_validos = {"DataEmprestimo", "PrevisaoDevolucao"}
+    campos_validos = {"DataEmprestimo", "PrevisaoDevolucao", "DataDevolucaoReal"}
     set_clauses = []
     valores = []
     for campo in campos_validos & dados.keys():
