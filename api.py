@@ -1,4 +1,5 @@
 from flask import Flask, jsonify
+from flask_cors import CORS
 
 from conectar.funcaoConectar import conectar
 
@@ -8,6 +9,8 @@ from endpoints.funcionario import funcionario
 from endpoints.livros import livros
 
 app = Flask(__name__)
+
+CORS (app)
 
 app.register_blueprint(aluno)
 app.register_blueprint(emprestimos)
