@@ -8,6 +8,7 @@ from endpoints.aluno import aluno
 from endpoints.emprestimos import emprestimos
 from endpoints.funcionario import funcionario
 from endpoints.livros import livros
+from endpoints.login import login
 
 app = Flask(__name__)
 
@@ -17,6 +18,7 @@ app.register_blueprint(aluno)
 app.register_blueprint(emprestimos)
 app.register_blueprint(funcionario)
 app.register_blueprint(livros)
+app.register_blueprint(login)
 
 @app.errorhandler(HTTPException)
 def erro_json(e):
