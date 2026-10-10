@@ -115,3 +115,34 @@ def deletarfuncionario(idfuncionario):
     conn.close()
     # 204 = No Content (padrão para deleções bem‑sucedidas)
     return ("", 204)
+
+@funcionario.route("/funcionarios/selecionar", methods=["GET"])
+def listar_funcionarios_para_selecao():
+    conn = conectar()
+
+    try:
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT idfuncionario,
+                   NomeFuncionario,
+                   RegistroFuncionario
+            FROM funcionario
+        """)
+
+        dados = [
+            {
+                "idfuncionario": row[0],
+                "NomeFuncionario": row[1],
+                "RegistroFuncionario": row[2]
+            }
+            for row in cursor.fetchall()
+        ]
+
+        return jsonify(dados), 200
+
+    except Exception as erro:
+        return jsonify({"erro": str(erro)}), 500
+
+    finally:
+        conn.close()

@@ -116,3 +116,32 @@ def deletaraluno(idAluno):
     conn.close()
     # 204 = No Content (padrão para deleções bem‑sucedidas)
     return ("", 204)
+
+@aluno.route("/alunos/selecionar", methods=["GET"])
+def listar_alunos_para_selecao():
+    conn = conectar()
+
+    try:
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT idAluno, NomeAluno, MatriculaAluno
+            FROM aluno
+        """)
+
+        dados = [
+            {
+                "idAluno": row[0],
+                "NomeAluno": row[1],
+                "MatriculaAluno": row[2]
+            }
+            for row in cursor.fetchall()
+        ]
+
+        return jsonify(dados), 200
+
+    except Exception as erro:
+        return jsonify({"erro": str(erro)}), 500
+
+    finally:
+        conn.close()
