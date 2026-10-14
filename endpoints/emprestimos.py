@@ -6,20 +6,76 @@ emprestimos = Blueprint('emprestimos', __name__)
 
 
 #ROTAS PARA A TABELA SERIE B
-##ROTA GET
-##############################################
+
+## ROTA GET — LISTAR EMPRÉSTIMOS COM USUÁRIO E LIVRO
+
 @emprestimos.route("/emprestimos", methods=["GET"])
 def listar_CadastrosB():
     conn = conectar()
-    #conn.execute("PRAGMA foreign_keys = ON") #ativa as chaves estrangeiras das tabelas (pois, não é ativado por padrão)
-    cursor = conn.cursor()
-    cursor.execute("SELECT idEmprestimo, DataEmprestimo, PrevisaoDevolucao, DataDevolucaoReal FROM emprestimos")
-    dados = [
-        {"idEmprestimo": row[0], "DataEmprestimo": row[1], "PrevisaoDevolucao": row[2], "DataDevolucaoReal": row[3]}
-        for row in cursor.fetchall()
-    ]
-    conn.close()
-    return jsonify(dados)
+
+    try:
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT
+                e.idEmprestimo,
+                e.DataEmprestimo,
+                e.PrevisaoDevolucao,
+                e.DataDevolucaoReal,
+                e.idLivro,
+                l.NomeLivro,
+                e.idAluno,
+                a.NomeAluno,
+                e.idfuncionario,
+                f.NomeFuncionario,
+                CASE
+                    WHEN e.idAluno IS NOT NULL THEN 'Aluno'
+                    WHEN e.idfuncionario IS NOT NULL THEN 'Funcionário'
+                    ELSE 'Não identificado'
+                END AS TipoUsuario,
+                COALESCE(
+                    a.NomeAluno,
+                    f.NomeFuncionario,
+                    'Usuário não identificado'
+                ) AS NomeUsuario
+            FROM emprestimos e
+            LEFT JOIN livros l
+                ON e.idLivro = l.idLivro
+            LEFT JOIN aluno a
+                ON e.idAluno = a.idAluno
+            LEFT JOIN funcionario f
+                ON e.idfuncionario = f.idfuncionario
+            ORDER BY e.idEmprestimo DESC
+        """)
+
+        dados = [
+            {
+                "idEmprestimo": row[0],
+                "DataEmprestimo": row[1],
+                "PrevisaoDevolucao": row[2],
+                "DataDevolucaoReal": row[3],
+                "idLivro": row[4],
+                "NomeLivro": row[5],
+                "idAluno": row[6],
+                "NomeAluno": row[7],
+                "idfuncionario": row[8],
+                "NomeFuncionario": row[9],
+                "TipoUsuario": row[10],
+                "NomeUsuario": row[11]
+            }
+            for row in cursor.fetchall()
+        ]
+
+        return jsonify(dados), 200
+
+    except Exception:
+        return jsonify({
+            "erro": "Não foi possível consultar os empréstimos."
+        }), 500
+
+    finally:
+        conn.close()
+
 
 ##ROTA INSERT
 #############################################
@@ -27,74 +83,232 @@ def listar_CadastrosB():
 @emprestimos.route("/emprestimos", methods=["POST"])
 def criar_usuarioB():
     dados = request.get_json(silent=True)
-    if not dados:
-        abort(400, description="JSON inválido ou ausente")
 
-    # Validação de campos obrigatórios
-    campos_obrigatorios = {"DataEmprestimo", "PrevisaoDevolucao", "DataDevolucaoReal"}
-    if not campos_obrigatorios.issubset(dados.keys()):
-        abort(400, description=f"Campos obrigatórios: {', '.join(campos_obrigatorios)}")
+    if not isinstance(dados, dict):
+        return jsonify({"erro": "JSON inválido ou ausente."}), 400
+
+    obrigatorios = [
+        "DataEmprestimo",
+        "PrevisaoDevolucao",
+        "idLivro"
+    ]
+
+    if any(dados.get(campo) in (None, "") for campo in obrigatorios):
+        return jsonify({
+            "erro": "Informe as datas e o livro."
+        }), 400
+
+    id_aluno = dados.get("idAluno")
+    id_funcionario = dados.get("idfuncionario")
+
+    if (id_aluno in (None, "")) == (id_funcionario in (None, "")):
+        return jsonify({
+            "erro": "Informe exatamente um aluno ou um funcionário."
+        }), 400
+
+    try:
+        id_livro = int(dados["idLivro"])
+        id_aluno = int(id_aluno) if id_aluno not in (None, "") else None
+        id_funcionario = (
+            int(id_funcionario)
+            if id_funcionario not in (None, "")
+            else None
+        )
+    except (ValueError, TypeError):
+        return jsonify({"erro": "Identificadores inválidos."}), 400
+
+    data = dados["DataEmprestimo"]
+    previsao = dados["PrevisaoDevolucao"]
+
+    if previsao < data:
+        return jsonify({
+            "erro": "A previsão não pode ser anterior ao empréstimo."
+        }), 400
 
     conn = conectar()
-    cursor = conn.cursor()
-    cursor.execute(
-        "INSERT INTO emprestimos (DataEmprestimo, PrevisaoDevolucao, DataDevolucaoReal)"
-        "VALUES (%s, %s, %s)",
-        (dados["DataEmprestimo"], dados["PrevisaoDevolucao"], dados["DataDevolucaoReal"])
-    )
-    conn.commit()
-    novo_id = cursor.lastrowid
-    conn.close()
 
-    # 201 Created + Location do recurso recém‑criado
-    resposta = jsonify({"idEmprestimo": novo_id, **dados})
-    resposta.status_code = 201
-    resposta.headers["Location"] = f"/emprestimos/{novo_id}"
-    return resposta
+    try:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            "SELECT idLivro FROM livros WHERE idLivro = %s",
+            (id_livro,)
+        )
+        if cursor.fetchone() is None:
+            return jsonify({"erro": "Livro não encontrado."}), 404
+
+        if id_aluno is not None:
+            cursor.execute(
+                "SELECT idAluno FROM aluno WHERE idAluno = %s",
+                (id_aluno,)
+            )
+            if cursor.fetchone() is None:
+                return jsonify({"erro": "Aluno não encontrado."}), 404
+
+        if id_funcionario is not None:
+            cursor.execute(
+                "SELECT idfuncionario FROM funcionario WHERE idfuncionario = %s",
+                (id_funcionario,)
+            )
+            if cursor.fetchone() is None:
+                return jsonify({"erro": "Funcionário não encontrado."}), 404
+
+        cursor.execute("""
+            INSERT INTO emprestimos (
+                DataEmprestimo,
+                PrevisaoDevolucao,
+                DataDevolucaoReal,
+                idLivro,
+                idAluno,
+                idfuncionario
+            )
+            VALUES (%s, %s, %s, %s, %s, %s)
+        """, (
+            data,
+            previsao,
+            dados.get("DataDevolucaoReal") or None,
+            id_livro,
+            id_aluno,
+            id_funcionario
+        ))
+
+        novo_id = cursor.lastrowid
+        conn.commit()
+
+        return jsonify({
+            "mensagem": "Empréstimo registrado com sucesso!",
+            "idEmprestimo": novo_id
+        }), 201
+
+    except Exception:
+        conn.rollback()
+        return jsonify({
+            "erro": "Erro interno ao registrar o empréstimo."
+        }), 500
+
+    finally:
+        conn.close()
 
 ##ROTA UPDATE
 #############################################
-@emprestimos.route("/emprestimos/<int:idEmprestimo>", methods=["PUT", "PATCH"])
+
+@emprestimos.route("/emprestimos/<int:idEmprestimo>", methods=["PUT"])
 def atualizar_usuarioB(idEmprestimo):
     dados = request.get_json(silent=True)
-    if not dados:
-        abort(400, description="JSON inválido ou ausente")
 
-    # Para PUT, garanta que todos os campos estejam presentes
-    if request.method == "PUT":
-        campos_esperados = {"DataEmprestimo", "PrevisaoDevolucao", "DataDevolucaoReal"}
-        if not campos_esperados.issubset(dados.keys()):
-            abort(400, description=f"PUT requer todos os campos: {', '.join(campos_esperados)}")
+    if not isinstance(dados, dict):
+        return jsonify({"erro": "JSON inválido ou ausente."}), 400
 
-    # Monta dinamicamente o SQL somente com os campos enviados
-    campos_validos = {"DataEmprestimo", "PrevisaoDevolucao", "DataDevolucaoReal"}
-    set_clauses = []
-    valores = []
-    for campo in campos_validos & dados.keys():
-        set_clauses.append(f"{campo} = %s")
-        valores.append(dados[campo])
+    campos_obrigatorios = {
+        "DataEmprestimo",
+        "PrevisaoDevolucao",
+        "DataDevolucaoReal",
+        "idLivro",
+        "idAluno",
+        "idfuncionario"
+    }
 
-    if not set_clauses:
-        abort(400, description="Nenhum campo válido para atualizar")
+    if not campos_obrigatorios.issubset(dados.keys()):
+        return jsonify({
+            "erro": "Informe todas as datas, o livro e os campos de usuário."
+        }), 400
 
-    valores.append(idEmprestimo)  # último parâmetro é o WHERE
+    data_emprestimo = dados["DataEmprestimo"]
+    previsao = dados["PrevisaoDevolucao"]
+    data_devolucao = dados["DataDevolucaoReal"]
+
+    try:
+        id_livro = int(dados["idLivro"])
+        id_aluno = (
+            int(dados["idAluno"])
+            if dados["idAluno"] not in (None, "") else None
+        )
+        id_funcionario = (
+            int(dados["idfuncionario"])
+            if dados["idfuncionario"] not in (None, "") else None
+        )
+    except (ValueError, TypeError):
+        return jsonify({"erro": "Identificadores inválidos."}), 400
+
+    if (id_aluno is None) == (id_funcionario is None):
+        return jsonify({
+            "erro": "Informe exatamente um aluno ou um funcionário."
+        }), 400
+
+    if previsao < data_emprestimo:
+        return jsonify({
+            "erro": "A previsão de devolução não pode ser anterior ao empréstimo."
+        }), 400
 
     conn = conectar()
-    cursor = conn.cursor()
-    cursor.execute(
-        f"UPDATE emprestimos SET {', '.join(set_clauses)} WHERE idEmprestimo = %s",
-        tuple(valores)
-    )
-    conn.commit()
 
-    if cursor.rowcount == 0:
+    try:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            "SELECT idEmprestimo FROM emprestimos WHERE idEmprestimo = %s",
+            (idEmprestimo,)
+        )
+        if cursor.fetchone() is None:
+            return jsonify({"erro": "Empréstimo não encontrado."}), 404
+
+        cursor.execute(
+            "SELECT idLivro FROM livros WHERE idLivro = %s",
+            (id_livro,)
+        )
+        if cursor.fetchone() is None:
+            return jsonify({"erro": "Livro não encontrado."}), 404
+
+        if id_aluno is not None:
+            cursor.execute(
+                "SELECT idAluno FROM aluno WHERE idAluno = %s",
+                (id_aluno,)
+            )
+            if cursor.fetchone() is None:
+                return jsonify({"erro": "Aluno não encontrado."}), 404
+
+        if id_funcionario is not None:
+            cursor.execute(
+                "SELECT idfuncionario FROM funcionario WHERE idfuncionario = %s",
+                (id_funcionario,)
+            )
+            if cursor.fetchone() is None:
+                return jsonify({"erro": "Funcionário não encontrado."}), 404
+
+        cursor.execute("""
+            UPDATE emprestimos
+            SET DataEmprestimo = %s,
+                PrevisaoDevolucao = %s,
+                DataDevolucaoReal = %s,
+                idLivro = %s,
+                idAluno = %s,
+                idfuncionario = %s
+            WHERE idEmprestimo = %s
+        """, (
+            data_emprestimo,
+            previsao,
+            data_devolucao or None,
+            id_livro,
+            id_aluno,
+            id_funcionario,
+            idEmprestimo
+        ))
+
+        conn.commit()
+
+        return jsonify({
+            "mensagem": "Empréstimo atualizado com sucesso.",
+            "idEmprestimo": idEmprestimo
+        }), 200
+
+    except Exception:
+        conn.rollback()
+        return jsonify({
+            "erro": "Erro interno ao atualizar o empréstimo."
+        }), 500
+
+    finally:
         conn.close()
-        abort(404, description="usuário não encontrado")
-
-    conn.close()
-    # 204 = No Content, mas você pode devolver 200 com o JSON atualizado se preferir
-    return ("", 204)
-
 
 ##ROTA DELETE
 #############################################
